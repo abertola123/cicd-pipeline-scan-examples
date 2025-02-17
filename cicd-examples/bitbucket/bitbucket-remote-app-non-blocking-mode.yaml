@@ -1,0 +1,37 @@
+image: ubuntu:latest
+
+pipelines:
+  branches:
+    main:
+      - step:
+          name: Install Probely CLI and start a Scan
+          caches:
+            - pip
+          script:
+            - apt-get update && apt-get install -y python3-pip python3-venv jq
+            - python3 -m venv venv
+            - source ./venv/bin/activate
+            - pip install probely # install Probely CLI
+            - probely targets get --api-key $PROBELY_API_KEY
+            
+            - |
+              echo "Starting Scan..."
+              for i in {1..20}; do
+                echo "-----------------------------------"
+                SCAN_ID=$(probely targets start-scan ${TARGET_ID} -o IDS_ONLY --api-key $PROBELY_API_KEY)
+                echo ${SCAN_ID}
+                if [ -z "${SCAN_ID}" ]; then
+                  echo "Scan didn't start... Retry start-scan"
+                else
+                  echo "Scan started with SCAN ID: ${SCAN_ID}"
+                  break
+                fi
+                sleep 5
+              done
+              if [ -z "$SCAN_ID" ]; then
+                echo "No Scan ID, aborting..."
+                exit 1
+              fi
+          services:
+            - docker
+

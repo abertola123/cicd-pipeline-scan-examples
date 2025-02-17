@@ -1,0 +1,17 @@
+{
+  "name": "cicd-ephemeral-vuln-app",
+  "version": "1.0.0",
+  "description": "Scan ephemeral vulnerable app during CI/CD",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "prod": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "ejs": "^3.1.10",
+    "express": "^4.21.1"
+  }
+}
