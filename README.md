@@ -9,18 +9,19 @@
 
 ### Running a scan on an ephemeral application
 
-- Create the target on Probely with the desired internal hostname (ex: `http://testapplocal:8080/`)
+- Create the **target** on Probely with the desired internal hostname (ex: `http://testapplocal:8080/`)
   - https://help.probely.com/en/articles/5733114-how-to-add-a-target
-- Create an API Key on Probely with the right permissions to start a scan on this target
+- Create an **API Key** on Probely with the right permissions to start a scan on this target
   - https://help.probely.com/en/articles/8592281-how-to-generate-an-api-key
-- Create a Scanning Agent on Probely and add it to the target
+- Create a **Scanning Agent** on Probely and configure the target to use the scanning agent
   - (Step 1) https://help.probely.com/en/articles/6503388-how-to-install-a-scanning-agent
+  - https://help.probely.com/en/articles/4615595-how-to-scan-internal-applications-with-a-scanning-agent
 
 ### Running a scan on a remote target (target running on your server) in blocking and non-blocking mode
 
-- Create the target on Probely 
+- Create the **target** on Probely 
   - https://help.probely.com/en/articles/5733114-how-to-add-a-target
-- Create an API Key on Probely with the right permissions to start a scan on this target
+- Create an **API Key** on Probely with the right permissions to start a scan on this target
   - https://help.probely.com/en/articles/8592281-how-to-generate-an-api-key
 
 
