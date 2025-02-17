@@ -30,19 +30,22 @@
 
 Create a GitHub action using the following YAML examples:
 
-- Running a scan on an **ephemeral** application in **blocking mode**
+#### Running a scan on an **ephemeral** application in **blocking mode**
+
   - [YAML file](./cicd-examples/github/github-ephemeral-app-blocking-mode.yaml)
   - Configuration
     - ![GitHub Secrets config](./assets/github-ephemeral-config-secrets.png)
     - ![GitHub Variables config](./assets/github-ephemeral-config-variables.png)
 
-- Running a scan on a **remote** target in **blocking mode**
+#### Running a scan on a **remote** target in **blocking mode**
+
   - [YAML file](./cicd-examples/github/github-remote-app-blocking-mode.yaml)
   - Configuration
     - ![GitHub Secrets config](./assets/github-remote-config-secrets.png)
     - ![GitHub Variables config](./assets/github-remote-config-variables.png)
 
-- Running a scan on a **remote** target in **non-blocking mode**
+#### Running a scan on a **remote** target in **non-blocking mode**
+
   - [YAML file](./cicd-examples/github/github-remote-app-non-blocking-mode.yaml)
   - Configuration
     - ![GitHub Secrets config](./assets/github-remote-config-secrets.png)
