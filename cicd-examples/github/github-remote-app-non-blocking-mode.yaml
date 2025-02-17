@@ -1,0 +1,46 @@
+# Remote App in non-blocking mode
+
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Install Probely CLI edit
+      - name: Install Probely CLI
+        run: |
+          # Install Probely CLI
+          pip install probely
+          # Test probely GET TARGETS
+          probely targets get --api-key ${{ secrets.PROBELY_API_KEY }}
+      
+      # Step 2: Start Scan
+      - name: Start Scan
+        run: |
+          for i in {1..20}; do
+            echo "-----------------------------------"
+            SCAN_ID=$(probely targets start-scan ${{ vars.TARGET_ID }} -o IDS_ONLY --api-key ${{ secrets.PROBELY_API_KEY }})
+            echo ${SCAN_ID}
+            if [ -f ${SCAN_ID} ]; then
+              echo "Scan didn't start... Retry start-scan"
+            else
+              echo "Scan started with SCAN ID: ${SCAN_ID}";
+              echo "SCAN_ID=${SCAN_ID}" >> $GITHUB_ENV
+              break;
+            fi
+            sleep 5
+          done
+          if [ -f $SCAN_ID ]; then
+            echo "No Scan ID, aborting..."
+            exit 1
+          fi
+

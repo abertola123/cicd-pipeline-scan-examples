@@ -1,0 +1,77 @@
+# Remote App in blocking mode
+
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Install Probely CLI edit
+      - name: Install Probely CLI
+        run: |
+          # Install Probely CLI
+          pip install probely
+          # Test probely GET TARGETS
+          probely targets get --api-key ${{ secrets.PROBELY_API_KEY }}
+      
+      # Step 2: Start Scan
+      - name: Start Scan
+        run: |
+          for i in {1..20}; do
+            echo "-----------------------------------"
+            SCAN_ID=$(probely targets start-scan ${{ vars.TARGET_ID }} -o IDS_ONLY --api-key ${{ secrets.PROBELY_API_KEY }})
+            echo ${SCAN_ID}
+            if [ -f ${SCAN_ID} ]; then
+              echo "Scan didn't start... Retry start-scan"
+            else
+              echo "Scan started with SCAN ID: ${SCAN_ID}";
+              echo "SCAN_ID=${SCAN_ID}" >> $GITHUB_ENV
+              break;
+            fi
+            sleep 5
+          done
+          if [ -f $SCAN_ID ]; then
+            echo "No Scan ID, aborting..."
+            exit 1
+          fi
+
+      # Step 3: Wait for scan to end
+      - name: Wait for scan to end
+        run: |
+          # Wait until scan ends
+          while true; do
+            echo "-----------------------------------"
+            SCAN_OUTPUT=$(probely scans get ${SCAN_ID} --api-key ${{ secrets.PROBELY_API_KEY }} | tail -1)
+            echo ${SCAN_OUTPUT}
+            echo "-----------------------------------"
+            SCAN_STATUS=$(probely scans get ${SCAN_ID} --api-key ${{ secrets.PROBELY_API_KEY }} -o JSON | jq -r '.[0].status')
+            if [ $SCAN_STATUS == "started" ] || [ $SCAN_STATUS == "queued" ]; then
+              echo "Scan is running or queued!";
+            else
+              echo "Scan is not running... finishing"
+              break;
+            fi
+            sleep 30;
+          done
+
+      # Step 4: Optional logic - abort the pipeline if there are any HIGH risk vulnerabilities.
+      - name: Check for High risk vulnerabilities
+        run: |
+          # Wait until scan ends
+          HIGH_VULNS=$(probely scans get $SCAN_ID --api-key ${{ secrets.PROBELY_API_KEY }} -o JSON | jq -r '.[0].highs')
+          echo "HIGH risk vulnerabilities ${HIGH_VULNS}"
+          if [[ "$HIGH_VULNS" -gt 0 ]]; then
+            echo "Scan has High risk vulnerabilities... aborting"
+            exit 1
+          else
+            echo "Scan doesn't have High risk vulnerabilities"
+          fi

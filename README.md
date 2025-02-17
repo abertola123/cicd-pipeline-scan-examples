@@ -24,40 +24,46 @@
   - https://help.probely.com/en/articles/8592281-how-to-generate-an-api-key
 
 
-**NOTE:** You can use the app provided in this repo to test the integration.
+#### NOTE: You can use the app provided in this repo to test the integration.
 
 ### GitHub Actions
 
 Create a GitHub action using the following YAML examples:
 
-- Running a scan on an ephemeral application in blocking mode
-  - YAML file
+- Running a scan on an **ephemeral** application in **blocking mode**
+  - [YAML file](./cicd-examples/github/github-ephemeral-app-blocking-mode.yaml)
   - Configuration
+    - ![GitHub Secrets config](./assets/github-ephemeral-config-secrets.png)
+    - ![GitHub Variables config](./assets/github-ephemeral-config-variables.png)
 
-- Running a scan on a remote target in blocking mode
-  - YAML file
+- Running a scan on a **remote** target in **blocking mode**
+  - [YAML file](./cicd-examples/github/github-remote-app-blocking-mode.yaml)
   - Configuration
+    - ![GitHub Secrets config](./assets/github-remote-config-secrets.png)
+    - ![GitHub Variables config](./assets/github-remote-config-variables.png)
 
-- Running a scan on a remote target in non-blocking mode
-  - YAML file
+- Running a scan on a **remote** target in **non-blocking mode**
+  - [YAML file](./cicd-examples/github/github-remote-app-non-blocking-mode.yaml)
   - Configuration
+    - ![GitHub Secrets config](./assets/github-remote-config-secrets.png)
+    - ![GitHub Variables config](./assets/github-remote-config-variables.png)
 
 
 ### BitBucket
 
 Create a `bitbucket-pipelines.yml` file using the following YAML examples:
 
-- Running a scan on an ephemeral application in **blocking mode** (requires the `scanning-agent/farcasterd-linux-amd64-0.4.3` file)
+- Running a scan on an **ephemeral** application in **blocking mode** (requires the `scanning-agent/farcasterd-linux-amd64-0.4.3` file)
   - [YAML file](./cicd-examples/bitbucket/bitbucket-ephemeral-app-blocking-mode.yaml)
   - Configuration:
     - ![BitBucket config](./assets/bitbucket-ephemeral-config.png)
 
-- Running a scan on a remote target in blocking mode
+- Running a scan on a **remote** target in **blocking mode**
   - [YAML file](./cicd-examples/bitbucket/bitbucket-remote-app-blocking-mode.yaml)
   - Configuration
     - ![BitBucket config](./assets/bitbucket-remote-config.png)
 
-- Running a scan on a remote target in non-blocking mode
+- Running a scan on a **remote** target in **non-blocking mode**
   - [YAML file](./cicd-examples/bitbucket/bitbucket-remote-app-non-blocking-mode.yaml)
   - Configuration
     - ![BitBucket config](./assets/bitbucket-remote-config.png)
