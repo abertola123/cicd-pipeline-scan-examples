@@ -1,6 +1,4 @@
-# cicd-pipeline-scan-examples
-
-CI/CD pipeline scan examples (GitHub actions, BitBucket, and more)
+# CI/CD pipeline scan examples (GitHub actions, BitBucket, and more)
 
 ## Integrations
 
