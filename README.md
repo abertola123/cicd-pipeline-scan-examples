@@ -76,4 +76,9 @@ Create a `bitbucket-pipelines.yml` file using the following YAML examples:
   - Configuration
     - ![BitBucket config](./assets/bitbucket-remote-config.png)
 
+### Create a **remote** target and running a scan on it in **blocking mode**
+  - [YAML file](./cicd-examples/bitbucket/bitbucket-create-remote-app-blocking-mode.yaml)
+  - Configuration
+    - ![BitBucket config](./assets/bitbucket-create-remote-config.png)
+
 ---- 

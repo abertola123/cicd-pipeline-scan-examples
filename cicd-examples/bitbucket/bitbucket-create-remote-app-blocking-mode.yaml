@@ -1,0 +1,89 @@
+image: ubuntu:latest
+
+pipelines:
+  branches:
+    main:
+      - step:
+          name: Install Probely CLI, Scan and wait for scan to complete
+          caches:
+            - pip
+          script:
+            - apt-get update && apt-get install -y python3-pip python3-venv jq
+            - python3 -m venv venv
+            - source ./venv/bin/activate
+            - pip install probely # install Probely CLI
+            - probely targets get --api-key $PROBELY_API_KEY
+
+            - TARGET_REPO_LABEL_ID=$(probely target-labels get --f-search ${BITBUCKET_REPO_SLUG} -o IDS_ONLY --api-key ${PROBELY_API_KEY})
+            - echo "TARGET LABEL => ${TARGET_REPO_LABEL_ID}"
+            - |
+              echo "Create target if does not exist"
+              if [[ -z "${TARGET_REPO_LABEL_ID}" ]]; then
+                echo -e "labels:\n  - name: ${BITBUCKET_REPO_SLUG}" > /tmp/label-${BITBUCKET_REPO_SLUG}.yaml
+                echo "There is no label for this repo slug and no target... create target with label"
+                TARGET_ID=$(probely targets add ${TARGET_URL} --target-name ${TARGET_URL} --target-type WEB -f /tmp/label-${BITBUCKET_REPO_SLUG}.yaml -o IDS_ONLY --api-key ${PROBELY_API_KEY})
+              else
+                TARGET_ID=$(probely targets get --f-search ${TARGET_URL} --f-label ${TARGET_REPO_LABEL_ID} -o IDS_ONLY --api-key ${PROBELY_API_KEY})
+                if [[ -z "${TARGET_ID}" ]]; then
+                  echo "There is no target ID, creating a new target"
+                  echo -e "labels:\n  - name: ${BITBUCKET_REPO_SLUG}" > /tmp/label-${BITBUCKET_REPO_SLUG}.yaml
+                  TARGET_ID=$(probely targets add ${TARGET_URL} --target-name ${TARGET_URL} --target-type WEB -f /tmp/label-${BITBUCKET_REPO_SLUG}.yaml -o IDS_ONLY --api-key ${PROBELY_API_KEY})
+                fi
+              fi
+
+            - echo "Check TARGET_ID ${TARGET_ID}"
+            - |
+              if [[ -z "${TARGET_ID}" ]]; then
+                echo "No TARGET_ID... Aborting..."
+                exit 1
+              fi
+            
+            - |
+              echo "Starting Scan..."
+              for i in {1..20}; do
+                echo "-----------------------------------"
+                SCAN_ID=$(probely targets start-scan ${TARGET_ID} -o IDS_ONLY --api-key $PROBELY_API_KEY)
+                echo ${SCAN_ID}
+                if [ -z "${SCAN_ID}" ]; then
+                  echo "Scan didn't start... Retry start-scan"
+                else
+                  echo "Scan started with SCAN ID: ${SCAN_ID}"
+                  break
+                fi
+                sleep 5
+              done
+              if [ -z "$SCAN_ID" ]; then
+                echo "No Scan ID, aborting..."
+                exit 1
+              fi
+            
+            - |
+              echo "Waiting for scan to complete..."
+              while true; do
+                echo "-----------------------------------"
+                SCAN_OUTPUT=$(probely scans get ${SCAN_ID} --api-key $PROBELY_API_KEY | tail -1)
+                echo ${SCAN_OUTPUT}
+                echo "-----------------------------------"
+                SCAN_STATUS=$(probely scans get ${SCAN_ID} --api-key $PROBELY_API_KEY -o JSON | jq -r '.[0].status')
+                if [ "$SCAN_STATUS" == "started" ] || [ "$SCAN_STATUS" == "queued" ]; then
+                  echo "Scan is running or queued!"
+                else
+                  echo "Scan is completed."
+                  break
+                fi
+                sleep 30
+              done
+            
+            # Optional logic - abort the pipeline if there are any HIGH risk vulnerabilities.
+            - HIGH_VULNS=$(probely scans get $SCAN_ID --api-key $PROBELY_API_KEY -o JSON | jq -r '.[0].highs')
+            - echo "HIGH risk vulnerabilities ${HIGH_VULNS}"
+            - |
+              if [[ "$HIGH_VULNS" -gt 0 ]]; then
+                echo "Scan has High risk vulnerabilities... aborting"
+                exit 1
+              else
+                echo "Scan doesn't have High risk vulnerabilities"
+              fi
+          services:
+            - docker
+
