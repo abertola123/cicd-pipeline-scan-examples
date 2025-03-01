@@ -1,0 +1,26 @@
+stages:
+  - scan
+
+scan:
+  stage: scan
+  image: python:latest
+  script:
+    - pip install probely
+    - probely targets get --api-key ${PROBELY_API_KEY}
+    - |
+      for i in {1..20}; do
+        echo "-----------------------------------"
+        SCAN_ID=$(probely targets start-scan ${TARGET_ID} -o IDS_ONLY --api-key ${PROBELY_API_KEY})
+        echo ${SCAN_ID}
+        if [[ -z "$SCAN_ID" ]]; then
+          echo "Scan didn't start... Retry start-scan"
+        else
+          echo "Scan started with SCAN ID: ${SCAN_ID}";
+          break;
+        fi
+        sleep 5
+      done
+      if [[ -z "$SCAN_ID" ]]; then
+        echo "No Scan ID, aborting..."
+        exit 1
+      fi

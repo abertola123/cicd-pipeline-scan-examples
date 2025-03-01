@@ -56,6 +56,28 @@ Create a GitHub action using the following YAML examples:
 
 ----
 
+## Gitlab
+
+Create a `.gitlab-ci.yml` file using the following YAML examples:
+
+### Running a scan on an **ephemeral** application in **blocking mode** (requires the `scanning-agent/farcasterd-linux-amd64-0.4.3` file)
+
+  - [YAML file](./cicd-examples/gitlab/gitlab-ephemeral-app-blocking-mode.yaml)
+  - Configuration:
+    - ![Gitlab config](./assets/gitlab-ephemeral-config.png)
+
+### Running a scan on a **remote** target in **blocking mode**
+  - [YAML file](./cicd-examples/gitlab/gitlab-remote-app-blocking-mode.yaml)
+  - Configuration
+    - ![Gitlab config](./assets/gitlab-remote-config.png)
+
+### Running a scan on a **remote** target in **non-blocking mode**
+  - [YAML file](./cicd-examples/gitlab/gitlab-remote-app-non-blocking-mode.yaml)
+  - Configuration
+    - ![Gitlab config](./assets/gitlab-remote-config.png)
+
+---- 
+
 ## BitBucket
 
 Create a `bitbucket-pipelines.yml` file using the following YAML examples:
