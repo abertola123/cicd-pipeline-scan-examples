@@ -190,3 +190,4 @@ jobs:
           docker rm test-app
           docker rm probely-agent
           docker network rm custom-network
+        
