@@ -86,7 +86,7 @@ jobs:
             --cap-add NET_ADMIN \
             --network custom-network \
             -e FARCASTER_AGENT_TOKEN=${{ secrets.AGENT_TOKEN }} \
-            --device /dev/net/tun probely/farcaster-onprem-agent:v2
+            --device /dev/net/tun probely/farcaster-onprem-agent:v3
 
           # Using userspace agent
           # chmod +x scanning-agent/farcasterd-linux-amd64-0.4.3
