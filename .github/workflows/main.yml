@@ -1,12 +1,12 @@
 # Ephemeral App in blocking mode
-
 name: CI
 
 on:
   push:
     branches: [ "main" ]
   pull_request:
-    branches: [ "main" ]
+    branches:
+      - "main"
 
   workflow_dispatch:
 
@@ -68,14 +68,14 @@ jobs:
         run: |
           # Make a request to the web app using the custom hostname
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" ${{ vars.TARGET_URL }})
-          
+
           if [ "$RESPONSE" -ne 200 ]; then
             echo "App test failed with HTTP status $RESPONSE";
             exit 1;
           fi
 
           curl -s -i ${{ vars.TARGET_URL }}
-          
+
           echo "App test passed with HTTP status $RESPONSE";
 
       # Setp 8: Start scanning agent
@@ -86,21 +86,21 @@ jobs:
             --cap-add NET_ADMIN \
             --network custom-network \
             -e FARCASTER_AGENT_TOKEN=${{ secrets.AGENT_TOKEN }} \
-            --device /dev/net/tun probely/farcaster-onprem-agent:v3
+            --device /dev/net/tun probely/farcaster-onprem-agent:v2
 
           # Using userspace agent
           # chmod +x scanning-agent/farcasterd-linux-amd64-0.4.3
           # ./scanning-agent/farcasterd-linux-amd64-0.4.3 --token ${{ secrets.AGENT_TOKEN }} &
 
 
-      # Step 9: Wait for agent to stat
-      - name: Wait for agent to stat
+      # Step 9: Wait for agent to start
+      - name: Wait for agent to start
         run: |
           # Wait until the probely-agent is ready
           for i in {1..10}; do
             echo "-----------------------------------"
             AGENT_RUNNING=$(docker logs probely-agent | grep 'Running...' | wc -l)
-            if [ $AGENT_RUNNING == "1" ]; then
+            if [ "$AGENT_RUNNING" == "1" ]; then # Use quotes for string comparison
               echo "Agent is running!";
               echo "------------------------"
               docker logs probely-agent
@@ -110,24 +110,27 @@ jobs:
             fi
             sleep 2;
           done
-      
+
       # Step 10: Install Probely CLI
       - name: Install Probely CLI
         run: |
           # Install Probely CLI
           pip install probely
-          # Test probely GET TARGETS
-          probely targets get --api-key ${{ secrets.PROBELY_API_KEY }}
-      
+          # Test probely GET TARGETS - Use -o JSON for jq compatibility
+          probely targets get --api-key ${{ secrets.PROBELY_API_KEY }} -o JSON
+
       # Step 11: Start Scan
       - name: Start Scan
         run: |
+          # Loop to retry starting scan if it doesn't return an ID immediately
           for i in {1..20}; do
             echo "-----------------------------------"
+            # Use -o IDS_ONLY to get just the ID, which is a valid string for SCAN_ID
             SCAN_ID=$(probely targets start-scan ${{ vars.TARGET_ID }} -o IDS_ONLY --api-key ${{ secrets.PROBELY_API_KEY }})
-            echo ${SCAN_ID}
-            if [ -f ${SCAN_ID} ]; then
-              echo "Scan didn't start... Retry start-scan"
+            echo "Attempting to start scan, received: ${SCAN_ID}"
+            # Check if SCAN_ID is not empty and does not contain "Error" or similar
+            if [[ -z "${SCAN_ID}" || "${SCAN_ID}" == *"Error"* ]]; then
+              echo "Scan didn't start or returned an error. Retrying start-scan..."
             else
               echo "Scan started with SCAN ID: ${SCAN_ID}";
               echo "SCAN_ID=${SCAN_ID}" >> $GITHUB_ENV
@@ -135,60 +138,91 @@ jobs:
             fi
             sleep 5
           done
-          if [ -f $SCAN_ID ]; then
-            echo "No Scan ID, aborting..."
-            docker stop test-app
-            docker stop probely-agent
-            docker rm test-app
-            docker rm probely-agent
-            docker network rm custom-network
+
+          # Check if SCAN_ID was successfully obtained after the loop
+          if [[ -z "${SCAN_ID}" || "${SCAN_ID}" == *"Error"* ]]; then
+            echo "Failed to get a valid Scan ID after multiple retries. Aborting..."
+            docker stop test-app || true # Add || true to prevent script from failing if container already stopped
+            docker stop probely-agent || true
+            docker rm test-app || true
+            docker rm probely-agent || true
+            docker network rm custom-network || true
             exit 1
           fi
 
       # Step 12: Wait for scan to end
       - name: Wait for scan to end
         run: |
-          # Wait until scan ends
+          # Ensure SCAN_ID is available from GITHUB_ENV
+          if [ -z "${{ env.SCAN_ID }}" ]; then
+            echo "SCAN_ID environment variable is not set. Cannot wait for scan. Aborting."
+            exit 1
+          fi
+          SCAN_ID="${{ env.SCAN_ID }}" # Use the environment variable
+
           while true; do
             echo "-----------------------------------"
-            SCAN_OUTPUT=$(probely scans get ${SCAN_ID} --api-key ${{ secrets.PROBELY_API_KEY }} | tail -1)
-            echo ${SCAN_OUTPUT}
+            # Get the full JSON output and then parse it with jq
+            # Use .[] | select(.id == "${SCAN_ID}") to find the correct scan object
+            # and then extract its status. This handles if it's an array or single object.
+            SCAN_INFO=$(probely scans get ${SCAN_ID} --api-key ${{ secrets.PROBELY_API_KEY }} -o JSON)
+            echo "Raw scan info: ${SCAN_INFO}" # For debugging
+
+            # Extract status using jq. Use `?` for optional chaining in case field is missing.
+            # Use `first` to ensure we get a single object if it's an array of one.
+            SCAN_STATUS=$(echo "${SCAN_INFO}" | jq -r 'if type == "array" then .[] | select(.id == "${SCAN_ID}") | .status? else .status? end')
+
+            echo "Scan status: ${SCAN_STATUS}"
             echo "-----------------------------------"
-            SCAN_STATUS=$(probely scans get ${SCAN_ID} --api-key ${{ secrets.PROBELY_API_KEY }} -o JSON | jq -r '.[0].status')
-            if [ $SCAN_STATUS == "started" ] || [ $SCAN_STATUS == "queued" ]; then
-              echo "Scan is running or queued!";
+
+            if [ "$SCAN_STATUS" == "started" ] || [ "$SCAN_STATUS" == "queued" ] || [ "$SCAN_STATUS" == "pausing" ] || [ "$SCAN_STATUS" == "resuming" ]; then
+              echo "Scan is still running or in an intermediate state...";
             else
-              echo "Scan is not running... finishing"
+              echo "Scan is not running. Final status: $SCAN_STATUS. Finishing wait loop."
               break;
             fi
             sleep 30;
           done
 
-      # Step 13: check high vulnerabities
+      # Step 13: Check high vulnerabilities
       - name: Check for high vulnerabilities
         run: |
-          HIGH_VULNS=$(probely scans get ${SCAN_ID} --api-key ${{ secrets.PROBELY_API_KEY }} -o JSON | jq -r '.[0].highs')
-          echo "HIGH vulnerabilities: ${HIGH_VULNS}"
-          if [ $HIGH_VULNS -gt 0 ]; then
-            echo "Scan has High vulnerabilities... aborting"
-            docker stop test-app
-            docker stop probely-agent
-            docker rm test-app
-            docker rm probely-agent
-            docker network rm custom-network
-
+          # Ensure SCAN_ID is available from GITHUB_ENV
+          if [ -z "${{ env.SCAN_ID }}" ]; then
+            echo "SCAN_ID environment variable is not set. Cannot check vulnerabilities. Aborting."
             exit 1
+          fi
+          SCAN_ID="${{ env.SCAN_ID }}" # Use the environment variable
+
+          # Get the full JSON output and then parse it with jq
+          # Use .[] | select(.id == "${SCAN_ID}") to find the correct scan object
+          # and then extract its highs count.
+          SCAN_RESULTS=$(probely scans get ${SCAN_ID} --api-key ${{ secrets.PROBELY_API_KEY }} -o JSON)
+          HIGH_VULNS=$(echo "${SCAN_RESULTS}" | jq -r 'if type == "array" then .[] | select(.id == "${SCAN_ID}") | .highs? else .highs? end')
+
+          # Handle potential null/empty value from jq if 'highs' is not present
+          HIGH_VULNS=${HIGH_VULNS:-0} # Default to 0 if null or empty
+
+          echo "HIGH vulnerabilities: ${HIGH_VULNS}"
+          if [ "$HIGH_VULNS" -gt 0 ]; then # Use quotes for numeric comparison in bash
+            echo "Scan has High vulnerabilities... aborting"
+            # Ensure cleanup happens even on exit 1
+            echo "FAILURE_DETECTED=true" >> $GITHUB_ENV # Set a flag for cleanup step
+            exit 1 # Exit with 1 to fail the job
           else
             echo "Scan doesn't have high vulnerabilities"
           fi
 
       # Step 14: Clean up
       - name: Clean up Docker resources
+        # This step will always run, even if previous steps fail, if you add `if: always()`
+        # Or, if you want it to run only if a failure was detected in Step 13
+        if: always() || env.FAILURE_DETECTED == 'true'
         run: |
-          docker stop test-app
-          docker stop probely-agent
-          docker rm test-app
-          docker rm probely-agent
-          docker network rm custom-network
-          
-      
+          echo "Cleaning up Docker resources..."
+          docker stop test-app || true
+          docker stop probely-agent || true
+          docker rm test-app || true
+          docker rm probely-agent || true
+          docker network rm custom-network || true
+          echo "Cleanup complete."
