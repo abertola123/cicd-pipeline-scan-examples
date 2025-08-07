@@ -183,6 +183,11 @@ jobs:
             fi
             sleep 30;
           done
+          
+      # Step 12.5 List all Vulns   
+      - name: List all vulns
+        run: | 
+          probely findings get --f-targets ${{ vars.TARGET_ID }} --api-key ${{ secrets.PROBELY_API_KEY }} --f-scans $SCAN_ID
 
       # Step 13: Check high vulnerabilities
       - name: Check for high vulnerabilities
